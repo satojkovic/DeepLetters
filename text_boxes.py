@@ -119,27 +119,63 @@ def forward(input_images):
         net = tf.pad(net, [[0, 0], [1,1], [1,1], [0, 0]])
         net = slim.conv2d(net, 512, stride=2, padding='VALID')
         end_points[end_point] = net
-        print(net.get_shape())
+        print(end_point, ':', net.get_shape())
         # 10 x 10 x 512
         end_point = 'conv9'
         net = slim.conv2d(net, 128, kernel_size=[1, 1])
         net = tf.pad(net, [[0, 0], [1, 1], [1, 1], [0, 0]])
         net = slim.conv2d(net, 256, stride=2, padding='VALID')
         end_points[end_point] = net
-        print(net.get_shape())
+        print(end_point, ':', net.get_shape())
         # 5 x 5 x 256
         end_point = 'conv10'
         net = slim.conv2d(net, 128, kernel_size=[1, 1])
         net = slim.conv2d(net, 256, padding='VALID')
         end_points[end_point] = net
-        print(net.get_shape())
+        print(end_point, ':', net.get_shape())
         # 3 x 3 x 256
         end_point = 'global'
         net = slim.conv2d(net, 128, kernel_size=[1, 1])
         net = slim.conv2d(net, 256, padding='VALID')
         end_points[end_point] = net
-        print(net.get_shape())
+        print(end_point, ':', net.get_shape())
         # 1 x 1 x 256
 
-    logits = net
-    return logits, end_points
+        # Text box layers
+        tb_layers = ['conv4_3', 'conv7', 'conv8', 'conv9', 'conv10', 'global']
+        normalizations = [20, -1, -1, -1, -1, -1]
+        logits = []
+        localizations = []
+        for i, tb_layer in enumerate(tb_layers):
+            with tf.variable_scope(tb_layer + '_box'):
+                p, l = text_multibox_layer(tb_layer, end_points[tb_layer], normalizations[i])
+                logits.append(p)
+                localizations.append(l)
+
+    return localizations, logits, end_points
+
+
+def text_multibox_layer(layer, inputs, normalization=-1):
+    net = inputs
+    # L2 normalization: not implemented yet
+
+    num_anchors = 6
+    num_classes = 2
+
+    # Location prediction
+    num_loc_pred = 2 * num_anchors * 4
+    if layer == 'global':
+        loc_pred = slim.conv2d(net, num_loc_pred, kernel_size=[1, 1], activation_fn=None, padding='VALID')
+    else:
+        loc_pred = slim.conv2d(net, num_loc_pred, kernel_size=[1, 5], activation_fn=None, padding='SAME')
+    loc_pred = tf.reshape(loc_pred, loc_pred.get_shape().as_list()[:-1] + [2, num_anchors, 4])
+
+    # class prediction
+    scores_pred = 2 * num_anchors * num_classes
+    if layer == 'global':
+        sco_pred = slim.conv2d(net, scores_pred, kernel_size=[1, 1], activation_fn=None, padding='VALID')
+    else:
+        sco_pred = slim.conv2d(net, scores_pred, kernel_size=[1, 5], activation_fn=None, padding='SAME')
+    sco_pred = tf.reshape(sco_pred, sco_pred.get_shape().as_list()[:-1] + [2, num_anchors, num_classes])
+
+    return sco_pred, loc_pred
