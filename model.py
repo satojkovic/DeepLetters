@@ -1,16 +1,21 @@
 import cv2
 import math
+import pytesseract
+from imutils.object_detection import non_max_suppression
+import numpy as np
 
 class CvEAST:
-    def __init__(self, pb_file, width=320, height=320, conf_th=0.5, nms_th=0.4):
+    def __init__(self, pb_file, width=320, height=320, conf_th=0.5, nms_th=0.4, roi_pad=0.0):
         self.width = width
         self.height = height
         self.conf_th = conf_th
         self.nms_th = nms_th
+        self.roi_pad = roi_pad
         self.layer_names = ["feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"]
         self.net = cv2.dnn.readNet(pb_file)
         self.detections = []
         self.confidences = []
+        self.tesseract_config = ('-l eng --oem 1 --psm 7')
 
     def decode(self):
         detections = []
@@ -35,21 +40,43 @@ class CvEAST:
                 sin_a = math.sin(angle)
                 h = x0_data[x] + x2_data[x]
                 w = x1_data[x] + x3_data[x]
-                offset = ([offset_x + cos_a * x1_data[x] + sin_a * x2_data[x], offset_y - sin_a * x1_data[x] + cos_a * x2_data[x]])
+                end_x = int(offset_x + (cos_a * x1_data[x]) + (sin_a * x2_data[x]))
+                end_y = int(offset_y - (sin_a * x1_data[x]) + (cos_a * x2_data[x]))
+                start_x = int(end_x - w)
+                start_y = int(end_y - h)
 
-                p1 = (-sin_a * h + offset[0], -cos_a * h + offset[1])
-                p3 = (-cos_a * w + offset[0], sin_a * w + offset[1])
-                center = (0.5 * (p1[0] + p3[0]), 0.5 * (p1[1] + p3[1]))
-                detections.append((center, (w, h), -1 * angle * 180.0 / math.pi))
-                confidences.append(float(score))
+                detections.append((start_x, start_y, end_x, end_y))
+                confidences.append(scores_data[x])
         return [detections, confidences]
 
-    def predict(self, image):
-        org_image = image.copy()
-        org_h, org_w, _ = org_image.shape
+    def text_recognition(self, boxes):
+        results = []
+        for (start_x, start_y, end_x, end_y) in boxes:
+            start_x = int(start_x * self.ratio_w)
+            start_y = int(start_y * self.ratio_h)
+            end_x = int(end_x * self.ratio_w)
+            end_y = int(end_y * self.ratio_h)
 
-        self.ratio_h = org_h / self.height
-        self.ratio_w = org_w / self.width
+            # Padding
+            pad_x = int((end_x - start_x) * self.roi_pad)
+            pad_y = int((end_y - start_y) * self.roi_pad)
+
+            start_x = max(0, start_x - pad_x)
+            start_y = max(0, start_y - pad_y)
+            end_x = min(self.org_w, end_x + pad_x)
+            end_y = min(self.org_h, end_y + pad_y)
+
+            roi = self.org_image[start_y:end_y, start_x:end_x]
+            text = pytesseract.image_to_string(roi, config=self.tesseract_config)
+            results.append(((start_x, start_y, end_x, end_y), text))
+        return sorted(results, key=lambda r:r[0][1])
+
+    def predict(self, image):
+        self.org_image = image.copy()
+        self.org_h, self.org_w, _ = self.org_image.shape
+
+        self.ratio_h = self.org_h / self.height
+        self.ratio_w = self.org_w / self.width
 
         self.cnn_image = cv2.resize(image, (self.width, self.height))
         blob = cv2.dnn.blobFromImage(
@@ -60,8 +87,8 @@ class CvEAST:
         self.scores = outs[0]
         self.geometry = outs[1]
 
-        [self.boxes, self.confidences] = self.decode()
+        [boxes, confidences] = self.decode()
+        boxes = non_max_suppression(np.array(boxes), probs=confidences)
+        results = self.text_recognition(boxes)
 
-        indices = cv2.dnn.NMSBoxesRotated(self.boxes, self.confidences, self.conf_th, self.nms_th)
-
-        return self.ratio_w, self.ratio_h, indices, self.boxes
+        return self.ratio_w, self.ratio_h, results

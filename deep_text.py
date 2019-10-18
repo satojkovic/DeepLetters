@@ -25,15 +25,10 @@ if __name__ == "__main__":
             cv2.waitKey(0)
             break
 
-        ratio_w, ratio_h, indices, boxes = net.predict(frame)
-        for i in indices:
-            vertices = cv2.boxPoints(boxes[i[0]])
-            for j in range(4):
-                vertices[j][0] *= ratio_w
-                vertices[j][1] *= ratio_h
-            for j in range(4):
-                p1 = (vertices[j][0], vertices[j][1])
-                p2 = (vertices[(j + 1) % 4][0], vertices[(j + 1) % 4][1])
-                cv2.line(frame, p1, p2, (0, 255, 0), 1)
+        ratio_w, ratio_h, results = net.predict(frame)
+        for ((start_x, start_y, end_x, end_y), text) in results:
+            text = ''.join([c if ord(c) < 128 else '' for c in text]).strip()
+            cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), (0, 0, 255), 2)
+            cv2.putText(frame, text, (start_x, start_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
         cv2.imshow('Text Detection', frame)
