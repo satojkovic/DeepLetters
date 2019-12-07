@@ -1,4 +1,4 @@
-# DeepText
+# DeepLetters
 
 Text Detection and Text Recognition.
 
@@ -9,5 +9,5 @@ Text Detection and Text Recognition.
 ## How to use
 
 ```csh
-$ python deep_text.py --input <input image or video>
+$ python deep_letters.py --input <input image or video>
 ```
