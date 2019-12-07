@@ -60,7 +60,7 @@ if __name__ == "__main__":
         file_name = img[0]['file_name']
         height = img[0]['height']
         width = img[0]['width']
-        train_val_dir = 'train2014' if args.train_or_val else 'val2014'
+        train_val_dir = 'train2014'
         with tf.gfile.GFile(os.path.join(args.coco_imgdir, train_val_dir, file_name), 'rb') as fid:
             encoded_jpg = fid.read()
 
@@ -70,4 +70,4 @@ if __name__ == "__main__":
             tf_example = create_tf_example(ann, file_name, width, height, encoded_jpg)
             writer.write(tf_example.SerializeToString())
     writer.close()
-    print('Generated:', args.output_path)
+    print('Generated({} imgs):'.format(len(img_ids), args.output_path))
