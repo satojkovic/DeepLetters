@@ -52,7 +52,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     ct = coco_text.COCO_Text(args.cocotext_json)
     img_ids = ct.getImgIds(imgIds=ct.train, catIds=[('legibility', 'legible'), ('class', 'machine printed')]) \
-        if args.train_or_val else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible'), ('class', 'machine printed')])
+        if args.train_or_val.lower() == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible'), ('class', 'machine printed')])
 
     writer = tf.python_io.TFRecordWriter(args.output_path)
     for img_id in img_ids:
