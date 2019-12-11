@@ -50,9 +50,10 @@ def create_tf_example(ann, file_name, width, height, encoded_jpg):
 
 if __name__ == "__main__":
     args = parse_arguments()
+    train_or_val = args.train_or_val.lower()
     ct = coco_text.COCO_Text(args.cocotext_json)
     img_ids = ct.getImgIds(imgIds=ct.train, catIds=[('legibility', 'legible'), ('class', 'machine printed')]) \
-        if args.train_or_val.lower() == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible'), ('class', 'machine printed')])
+        if train_or_val == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible'), ('class', 'machine printed')])
 
     writer = tf.python_io.TFRecordWriter(args.output_path)
     for img_id in img_ids:
@@ -69,5 +70,7 @@ if __name__ == "__main__":
         for ann in anns:
             tf_example = create_tf_example(ann, file_name, width, height, encoded_jpg)
             writer.write(tf_example.SerializeToString())
+            if train_or_val == 'val':
+                break
     writer.close()
     print('Generated({} imgs):'.format(len(img_ids), args.output_path))
