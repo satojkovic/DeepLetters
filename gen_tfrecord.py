@@ -24,7 +24,7 @@ def create_tf_example(ann, file_name, width, height, encoded_jpg):
     xmax = [x2 / width]
     ymin = [y1 / height]
     ymax = [y2 / height]
-    cls_text = [ann['utf8_string'].encode('utf8')]
+    cls_text = ['Text'.encode('utf8')]
     cls_idx = [1] # bbox is 'Text' only, which id is defined in label_map
 
     filename = file_name.encode('utf8')
