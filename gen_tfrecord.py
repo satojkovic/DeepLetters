@@ -47,30 +47,86 @@ def create_tf_example(ann, file_name, width, height, encoded_jpg):
 
     return tf_example
 
+def create_tf_examples(writer, anns, path, file_name, width, height, encoded_jpg):
+    xmins, ymins = [], []
+    xmaxs, ymaxs = [], []
+    classes_text = []
+    classes = []
+    num_examples = 0
+    for ann in anns:
+        xmin = ann['bbox'][0]
+        ymin = ann['bbox'][1]
+        w = ann['bbox'][2]
+        h = ann['bbox'][3]
+        xmax = xmin + w
+        ymax = ymin + h
+
+        # normalize
+        xmin /= width
+        xmax /= width
+        ymin /= height
+        ymax /= height
+
+        if xmin < 1 and xmax < 1 and ymin < 1 and ymax < 1:
+            xmins.append(xmin)
+            xmaxs.append(xmax)
+            ymins.append(ymin)
+            ymaxs.append(ymax)
+            classes_text.append('Text'.encode('utf8'))
+            classes.append(1)
+
+    filename = os.path.join(path, file_name)
+    filename = filename.encode('utf8')
+    image_format = b'jpg'
+
+    if len(xmins) != 0:
+        tf_example = tf.train.Example(features=tf.train.Features(feature={
+            'image/height': dataset_util.int64_feature(height),
+            'image/width': dataset_util.int64_feature(width),
+            'image/filename': dataset_util.bytes_feature(filename),
+            'image/source_id': dataset_util.bytes_feature(filename),
+            'image/encoded': dataset_util.bytes_feature(encoded_jpg),
+            'image/format': dataset_util.bytes_feature(image_format),
+            'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
+            'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
+            'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
+            'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
+            'image/object/class/text': dataset_util.bytes_list_feature(classes_text),
+            'image/object/class/label': dataset_util.int64_list_feature(classes),
+        }))
+        writer.write(tf_example.SerializeToString())
+        num_examples += 1
+    return num_examples
 
 if __name__ == "__main__":
     args = parse_arguments()
     train_or_val = args.train_or_val.lower()
     ct = coco_text.COCO_Text(args.cocotext_json)
-    img_ids = ct.getImgIds(imgIds=ct.train, catIds=[('legibility', 'legible'), ('class', 'machine printed')]) \
-        if train_or_val == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible'), ('class', 'machine printed')])
+    img_ids = ct.getImgIds(imgIds=ct.train, catIds=[('legibility', 'legible')]) \
+        if train_or_val == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible')])
 
+    num_examples = 0
     writer = tf.python_io.TFRecordWriter(args.output_path)
     for img_id in img_ids:
-        img = ct.loadImgs(img_id)
-        file_name = img[0]['file_name']
-        height = img[0]['height']
-        width = img[0]['width']
+        img = ct.loadImgs(img_id)[0]
+        file_name = img['file_name']
         train_val_dir = 'train2014'
-        with tf.gfile.GFile(os.path.join(args.coco_imgdir, train_val_dir, file_name), 'rb') as fid:
+        path = os.path.join(args.coco_imgdir, train_val_dir)
+        pil_img = Image.open(os.path.join(path, file_name))
+        width, height = pil_img.size
+        # sanity check
+        if width != img['width'] or height != img['height']:
+            width = img['width']
+            height = img['height']
+        if width == 0 or height == 0:
+            continue
+
+        with tf.gfile.GFile(os.path.join(path, file_name), 'rb') as fid:
             encoded_jpg = fid.read()
 
-        ann_ids = ct.getAnnIds(img[0]['id'])
+        ann_ids = ct.getAnnIds(img['id'])
         anns = ct.loadAnns(ann_ids)
-        for ann in anns:
-            tf_example = create_tf_example(ann, file_name, width, height, encoded_jpg)
-            writer.write(tf_example.SerializeToString())
-            if train_or_val == 'val':
-                break
+        n = create_tf_examples(writer, anns, path, file_name, width, height, encoded_jpg)
+        num_examples += n
     writer.close()
-    print('Generated({} imgs):'.format(len(img_ids), args.output_path))
+    print('Generated({} examples):'.format(num_examples, args.output_path))
