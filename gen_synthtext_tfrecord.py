@@ -28,10 +28,32 @@ class SynthText:
 
     def _preproc(self):
         self._txt = self._preproc_gt_txt()
-        self.indices = self._get_indices()
-        self.wordBB = self.gt_mat['wordBB'][0][self.indices]
-        self.txt = self._txt[self.indices]
-        self.imnames = self.gt_mat['imnames'][0][self.indices]
+        self._indices = self._get_indices()
+        self._wordBB = self.gt_mat['wordBB'][0][self._indices]
+        self._txt = self._txt[self._indices]
+        self._imnames = self.gt_mat['imnames'][0][self._indices]
+        self._remove_invalid_boxes()
+
+    def _remove_invalid_boxes(self):
+        self.wordBB = []
+        self.txt = []
+        self.imnames = []
+        for index in range(len(self._wordBB)):
+            wordBB = []
+            txt = []
+            for bindex in range(self._wordBB[index].shape[-1]):
+                xmin = self._wordBB[index][0][0][bindex]
+                ymin = self._wordBB[index][1][0][bindex]
+                xmax = self._wordBB[index][0][2][bindex]
+                ymax = self._wordBB[index][1][2][bindex]
+                if ymin > ymax or xmin > xmax:
+                    continue
+                wordBB.append([xmin, ymin, xmax, ymax])
+                txt.append(self._txt[index][bindex])
+            if len(wordBB) != 0:
+                self.wordBB.append(wordBB)
+                self.txt.append(txt)
+                self.imnames.append(self._imnames[index])
 
     def _preproc_gt_txt(self):
         processed_txt = []
@@ -61,14 +83,11 @@ def create_tfrecord(gt_mat_dir, filename, wordBB, txt):
     classes_text = []
     classes = []
 
-    for index in range(wordBB.shape[-1]):
-        # the first dimension is 2 for x and y respectively
-        # the second dimension corresponds to the 4points (clockwise starting from top-left)
-        # the third dimension corresponds to number of words in the image
-        xmin = wordBB[0][0][index] / width
-        ymin = wordBB[1][0][index] / height
-        xmax = wordBB[0][2][index] / width
-        ymax = wordBB[1][2][index] / height
+    for index in range(len(wordBB)):
+        xmin = wordBB[index][0] / width
+        ymin = wordBB[index][1] / height
+        xmax = wordBB[index][2] / width
+        ymax = wordBB[index][3] / height
         if xmin < 1 and ymin < 1 and xmax < 1 and ymax < 1:
             xmins.append(xmin)
             ymins.append(ymin)
@@ -104,7 +123,8 @@ if __name__ == "__main__":
     synth_text = SynthText(args.gt_mat_path)
     print('charBB: {}, wordBB: {}'.format(len(synth_text.gt_mat['charBB'][0]), len(synth_text.gt_mat['wordBB'][0])))
     print('Text sample: {}'.format(synth_text.txt[0]))
-    print('Number of indices: {}'.format(len(synth_text.indices)))
+    print('Preprocessed: len(wordBB)={}, len(txt)={}, len(imnames)={}'.format(
+        len(synth_text.wordBB), len(synth_text.txt), len(synth_text.imnames)))
 
     train_indices, test_indices = synth_text.train_test_split()
     print('Train: {}, Test: {}'.format(len(train_indices), len(test_indices)))
