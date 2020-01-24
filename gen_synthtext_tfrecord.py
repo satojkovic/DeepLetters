@@ -139,12 +139,17 @@ if __name__ == "__main__":
             train_writer.write(tf_record.SerializeToString())
     train_writer.close()
 
+    seen = set()
     test_writer = tf.python_io.TFRecordWriter('synth_text_test.tfrecord')
     for index in tqdm(test_indices, total=len(test_indices)):
         filename = synth_text.imnames[index][0]
+        if filename in seen:
+            continue
+        seen.add(filename)
         wordBB = synth_text.wordBB[index]
         txt = synth_text.txt[index]
         tf_record = create_tfrecord(synth_text.gt_mat_dir, filename, wordBB, txt)
         if tf_record is not None:
             test_writer.write(tf_record.SerializeToString())
+    print('Wrote synth_text_test.tfrecord:', len(seen))
     test_writer.close()
