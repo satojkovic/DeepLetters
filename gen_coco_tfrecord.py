@@ -105,11 +105,15 @@ if __name__ == "__main__":
     img_ids = ct.getImgIds(imgIds=ct.train, catIds=[('legibility', 'legible')]) \
         if train_or_val == 'train' else ct.getImgIds(imgIds=ct.val, catIds=[('legibility', 'legible')])
 
+    seen = set()
     num_examples = 0
     writer = tf.python_io.TFRecordWriter(args.output_path)
     for img_id in img_ids:
         img = ct.loadImgs(img_id)[0]
         file_name = img['file_name']
+        if file_name in seen:
+            continue
+        seen.add(file_name)
         train_val_dir = 'train2014'
         path = os.path.join(args.coco_imgdir, train_val_dir)
         pil_img = Image.open(os.path.join(path, file_name))
