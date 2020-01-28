@@ -34,6 +34,9 @@ class CRNN:
         self.outputs = Dense(len(self.char_list)+1, activation='softmax')(self.blstm_2)
         self.model = Model(self.inputs, self.outputs)
 
+    def summary(self):
+        self.model.summary()
+
 class CvEAST:
     def __init__(self, pb_file, width=320, height=320, conf_th=0.5, nms_th=0.4, roi_pad=0.0):
         self.width = width
