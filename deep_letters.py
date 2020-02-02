@@ -133,4 +133,4 @@ if __name__ == "__main__":
             sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
             cv2.putText(frame, sim_pred, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
 
-        cv2.imshow('Text Detection', frame)
+        cv2.imshow('Text Detection and Text Recognition', frame)
