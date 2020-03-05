@@ -34,11 +34,21 @@ class MjSynth:
         # choose data at random
         y_train = np.random.choice(self.annotation_train,
             int(self.num_train_data * random_choice_rate), replace=False)
+        X_train = self._get_image_paths(y_train)
         y_val = np.random.choice(self.annotation_val,
             int(self.num_val_data * random_choice_rate), replace=False)
+        X_val = self._get_image_paths(y_val)
         y_test = np.random.choice(self.annotation_test,
             int(self.num_test_data * random_choice_rate), replace=False)
-        return y_train, y_val, y_test
+        X_test = self._get_image_paths(y_test)
+        return X_train, y_train, X_val, y_val, X_test, y_test
+
+    def _get_image_paths(self, annotations):
+        image_paths = []
+        for annot in annotations:
+            image_path, _ = annot.split(' ')
+            image_paths.append(image_path)
+        return image_paths
 
 if __name__ == "__main__":
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
@@ -48,5 +58,5 @@ if __name__ == "__main__":
         len(mj_synth.annotation_test))
     )
 
-    y_train, y_val, y_test = mj_synth.train_test_split()
+    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.train_test_split()
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
