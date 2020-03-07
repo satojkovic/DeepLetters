@@ -30,7 +30,7 @@ class MjSynth:
                 annot.append(line)
         return annot
 
-    def train_test_split(self, random_choice_rate=0.02):
+    def random_choice(self, random_choice_rate=0.02):
         # choose data at random
         y_train = np.random.choice(self.annotation_train,
             int(self.num_train_data * random_choice_rate), replace=False)
@@ -58,5 +58,5 @@ if __name__ == "__main__":
         len(mj_synth.annotation_test))
     )
 
-    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.train_test_split()
+    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice()
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
