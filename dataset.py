@@ -5,8 +5,10 @@ import numpy as np
 import string
 
 class MjSynth:
-    def __init__(self, data_root):
+    def __init__(self, data_root, width=128, height=32):
         self.data_root = pathlib.Path(data_root)
+        self.width = width
+        self.height = height
         self.all_image_paths = self._read_imlist()
         self.annotation_train = self._read_annotation('train')
         self.annotation_test = self._read_annotation('test')
@@ -57,6 +59,16 @@ class MjSynth:
         for char in txt:
             encoded_txt.append(self.char_list.index(char))
         return encoded_txt
+
+    def _preprocess_image(self, image):
+        image = tf.image.decode_jpeg(image, channels=1)
+        image = tf.image.resize(image, [self.height, self.width])
+        image /= 255.0
+        return image
+
+    def _load_and_preprocess_image(self, path):
+        image = tf.io.read_file(path)
+        return self._preprocess_image(image)
 
 if __name__ == "__main__":
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
