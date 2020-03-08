@@ -2,6 +2,7 @@ from os import replace
 import pathlib
 import tensorflow as tf
 import numpy as np
+import string
 
 class MjSynth:
     def __init__(self, data_root):
@@ -13,6 +14,7 @@ class MjSynth:
         self.num_train_data = len(self.annotation_train)
         self.num_test_data = len(self.annotation_test)
         self.num_val_data = len(self.annotation_val)
+        self.char_list = string.ascii_letters + string.digits
 
     def _read_imlist(self):
         imlist = []
@@ -49,6 +51,12 @@ class MjSynth:
             image_path, _ = annot.split(' ')
             image_paths.append(image_path)
         return image_paths
+
+    def _encode(self, txt):
+        encoded_txt = []
+        for char in txt:
+            encoded_txt.append(self.char_list.index(char))
+        return encoded_txt
 
 if __name__ == "__main__":
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
