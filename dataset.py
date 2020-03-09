@@ -60,6 +60,11 @@ class MjSynth:
             encoded_txt.append(self.char_list.index(char))
         return encoded_txt
 
+    def _parse_and_encode(self, path):
+        path = pathlib.Path(path)
+        txt = path.name.split('_')[1]
+        return self._encode(txt)
+
     def _preprocess_image(self, image):
         image = tf.image.decode_jpeg(image, channels=1)
         image = tf.image.resize(image, [self.height, self.width])

@@ -129,3 +129,7 @@ class CvEAST:
         results = self.text_recognition(boxes)
 
         return self.ratio_w, self.ratio_h, results
+
+if __name__ == "__main__":
+    crnn = CRNN()
+    crnn.model.summary()
