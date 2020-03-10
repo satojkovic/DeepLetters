@@ -71,6 +71,16 @@ class MjSynth:
         image /= 255.0
         return image
 
+    def _preprocess_image_cv(self, image):
+        # convert each image of shape (32, 128, 1)
+        w, h = image.shape
+        if w < self.width:
+            image = np.concatenate((image, np.ones((self.width - w, h))*255))
+        if h < self.height:
+            image = np.concatenate((image, np.ones((self.width, self.height - h))*255), axis=1)
+        image = np.expand_dims(image, axis=2)
+        return image / 255.0
+
     def _load_and_preprocess_image(self, path):
         image = tf.io.read_file(path)
         return self._preprocess_image(image)
