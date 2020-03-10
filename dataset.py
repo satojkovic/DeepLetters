@@ -3,6 +3,8 @@ import pathlib
 import tensorflow as tf
 import numpy as np
 import string
+import cv2
+from tqdm import tqdm
 
 class MjSynth:
     def __init__(self, data_root, width=128, height=32):
@@ -71,7 +73,9 @@ class MjSynth:
         image /= 255.0
         return image
 
-    def _preprocess_image_cv(self, image):
+    def _preprocess_image_cv(self, path):
+        image = cv2.imread(str(self.data_root.joinpath(path)))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         # convert each image of shape (32, 128, 1)
         w, h = image.shape
         if w < self.width:
@@ -85,6 +89,20 @@ class MjSynth:
         image = tf.io.read_file(path)
         return self._preprocess_image(image)
 
+    def create_dataset(self, X, y):
+        image_ds = []
+        for path in tqdm(X):
+            image = self._preprocess_image_cv(path)
+            image_ds.append(image)
+        label_ds = []
+        self.max_label_len = 0
+        for path in tqdm(y):
+            txt = self._parse_and_encode(path)
+            if len(txt) > self.max_label_len:
+                self.max_label_len = len(txt)
+            label_ds.append(txt)
+        return image_ds, label_ds
+
 if __name__ == "__main__":
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
     print('Num. of images:', len(mj_synth.all_image_paths))
@@ -95,3 +113,7 @@ if __name__ == "__main__":
 
     X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice()
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
+
+    val_ds = mj_synth.create_dataset(X_val, y_val)
+    test_ds = mj_synth.create_dataset(X_test, y_test)
+    train_ds = mj_synth.create_dataset(X_train, y_train)
