@@ -5,6 +5,7 @@ import numpy as np
 import string
 import cv2
 from tqdm import tqdm
+from keras.preprocessing.sequence import pad_sequences
 
 class MjSynth:
     def __init__(self, data_root, width=128, height=32):
@@ -19,6 +20,7 @@ class MjSynth:
         self.num_test_data = len(self.annotation_test)
         self.num_val_data = len(self.annotation_val)
         self.char_list = string.ascii_letters + string.digits
+        self.max_label_len = 0
 
     def _read_imlist(self):
         imlist = []
@@ -40,19 +42,23 @@ class MjSynth:
         # choose data at random
         y_train = np.random.choice(self.annotation_train,
             int(self.num_train_data * random_choice_rate), replace=False)
-        X_train = self._get_image_paths(y_train)
+        X_train = self._get_image_paths_with_empty_check(y_train)
         y_val = np.random.choice(self.annotation_val,
             int(self.num_val_data * random_choice_rate), replace=False)
-        X_val = self._get_image_paths(y_val)
+        X_val = self._get_image_paths_with_empty_check(y_val)
         y_test = np.random.choice(self.annotation_test,
             int(self.num_test_data * random_choice_rate), replace=False)
-        X_test = self._get_image_paths(y_test)
+        X_test = self._get_image_paths_with_empty_check(y_test)
         return X_train, y_train, X_val, y_val, X_test, y_test
 
-    def _get_image_paths(self, annotations):
+    def _get_image_paths_with_empty_check(self, annotations):
         image_paths = []
-        for annot in annotations:
+        for i, annot in enumerate(tqdm(annotations)):
             image_path, _ = annot.split(' ')
+            image = cv2.imread(str(self.data_root.joinpath(image_path)))
+            if image is None:
+                np.delete(annotations, i)
+                continue
             image_paths.append(image_path)
         return image_paths
 
@@ -89,13 +95,24 @@ class MjSynth:
         image = tf.io.read_file(path)
         return self._preprocess_image(image)
 
-    def create_dataset(self, X, y):
+    def create_datasets(self, X_train, y_train, X_val, y_val, X_test, y_test):
+        train_image_ds, train_label_ds = self._create_dataset(X_train, y_train)
+        val_image_ds, val_label_ds = self._create_dataset(X_val, y_val)
+        test_image_ds, test_label_ds = self._create_dataset(X_test, y_test)
+
+        # padding
+        train_label_ds = pad_sequences(train_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+        val_label_ds = pad_sequences(val_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+        test_label_ds = pad_sequences(test_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+
+        return (train_image_ds, train_label_ds), (val_image_ds, val_label_ds), (test_image_ds, test_label_ds)
+
+    def _create_dataset(self, X, y):
         image_ds = []
         for path in tqdm(X):
             image = self._preprocess_image_cv(path)
             image_ds.append(image)
         label_ds = []
-        self.max_label_len = 0
         for path in tqdm(y):
             txt = self._parse_and_encode(path)
             if len(txt) > self.max_label_len:
@@ -111,9 +128,7 @@ if __name__ == "__main__":
         len(mj_synth.annotation_test))
     )
 
-    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice()
+    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice(random_choice_rate=0.01)
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
 
-    val_ds = mj_synth.create_dataset(X_val, y_val)
-    test_ds = mj_synth.create_dataset(X_test, y_test)
-    train_ds = mj_synth.create_dataset(X_train, y_train)
+    train_ds, val_ds, test_ds = mj_synth.create_datasets(X_train, y_train, X_val, y_val, X_test, y_val)
