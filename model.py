@@ -34,7 +34,16 @@ class CRNN:
         self.outputs = Dense(len(self.char_list)+1, activation='softmax')(self.blstm_2)
         self.model = Model(self.inputs, self.outputs)
 
-    def loss(self, y_true, y_pred, input_length, label_length):
+    def compile(self, max_label_len):
+        self.labels = Input(shape=[max_label_len], dtype='float32')
+        self.input_length = Input(shape=[1], dtype='int64')
+        self.label_length = Input(shape=[1], dtype='int64')
+        self.loss_out = Lambda(self._loss, output_shape=(1,), name='ctc')([self.outputs, self.labels, self.input_length, self.label_length])
+        self.training_model = Model(inputs=[self.inputs, self.labels, self.input_length, self.label_length], outputs=self.loss_out)
+        self.training_model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adam')
+
+    def _loss(self, args):
+        y_pred, y_true, input_length, label_length = args
         return K.ctc_batch_cost(y_true, y_pred, input_length, label_length)
 
     def inference(self, x):
