@@ -96,29 +96,34 @@ class MjSynth:
         return self._preprocess_image(image)
 
     def create_datasets(self, X_train, y_train, X_val, y_val, X_test, y_test):
-        train_image_ds, train_label_ds = self._create_dataset(X_train, y_train)
-        val_image_ds, val_label_ds = self._create_dataset(X_val, y_val)
-        test_image_ds, test_label_ds = self._create_dataset(X_test, y_test)
+        train_images, train_labels, train_input_length, train_label_length = self._create_dataset(X_train, y_train)
+        val_images, val_labels, val_input_length, val_label_length = self._create_dataset(X_val, y_val)
+        test_images, test_labels, test_input_length, test_label_length = self._create_dataset(X_test, y_test)
 
         # padding
-        train_label_ds = pad_sequences(train_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
-        val_label_ds = pad_sequences(val_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
-        test_label_ds = pad_sequences(test_label_ds, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+        train_labels = pad_sequences(train_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+        val_labels = pad_sequences(val_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+        test_labels = pad_sequences(test_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
 
-        return (train_image_ds, train_label_ds), (val_image_ds, val_label_ds), (test_image_ds, test_label_ds)
+        return (train_images, train_labels, train_input_length, train_label_length) \
+            , (val_images, val_labels, val_input_length, val_label_length) \
+            , (test_images, test_labels, test_input_length, test_label_length)
 
     def _create_dataset(self, X, y):
-        image_ds = []
+        images = []
         for path in tqdm(X):
             image = self._preprocess_image_cv(path)
-            image_ds.append(image)
-        label_ds = []
+            images.append(image)
+        labels = []
+        label_length = []
         for path in tqdm(y):
             txt = self._parse_and_encode(path)
             if len(txt) > self.max_label_len:
                 self.max_label_len = len(txt)
-            label_ds.append(txt)
-        return image_ds, label_ds
+            labels.append(txt)
+            label_length.append(len(txt))
+        input_length = [31 for _ in y]
+        return images, labels, input_length, label_length
 
 if __name__ == "__main__":
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
