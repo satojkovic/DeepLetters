@@ -21,6 +21,7 @@ class MjSynth:
         self.num_val_data = len(self.annotation_val)
         self.char_list = string.ascii_letters + string.digits
         self.max_label_len = 0
+        self._images = {}
 
     def _read_imlist(self):
         imlist = []
@@ -42,24 +43,26 @@ class MjSynth:
         # choose data at random
         y_train = np.random.choice(self.annotation_train,
             int(self.num_train_data * random_choice_rate), replace=False)
-        X_train = self._get_image_paths_with_empty_check(y_train)
+        X_train = self._get_image_paths_with_check(y_train)
         y_val = np.random.choice(self.annotation_val,
             int(self.num_val_data * random_choice_rate), replace=False)
-        X_val = self._get_image_paths_with_empty_check(y_val)
+        X_val = self._get_image_paths_with_check(y_val)
         y_test = np.random.choice(self.annotation_test,
             int(self.num_test_data * random_choice_rate), replace=False)
-        X_test = self._get_image_paths_with_empty_check(y_test)
+        X_test = self._get_image_paths_with_check(y_test)
         return X_train, y_train, X_val, y_val, X_test, y_test
 
-    def _get_image_paths_with_empty_check(self, annotations):
+    def _get_image_paths_with_check(self, annotations):
         image_paths = []
         for i, annot in enumerate(tqdm(annotations)):
             image_path, _ = annot.split(' ')
-            image = cv2.imread(str(self.data_root.joinpath(image_path)))
-            if image is None:
+            image = cv2.imread(str(self.data_root.joinpath(image_path).absolute()))
+            h, w, _ = image.shape
+            if image is None or image.size == 0 or w > self.width or h > self.height:
                 np.delete(annotations, i)
                 continue
             image_paths.append(image_path)
+            self._images[image_path] = image
         return image_paths
 
     def _encode(self, txt):
@@ -80,14 +83,14 @@ class MjSynth:
         return image
 
     def _preprocess_image_cv(self, path):
-        image = cv2.imread(str(self.data_root.joinpath(path)))
+        image = self._images[path]
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         # convert each image of shape (32, 128, 1)
-        w, h = image.shape
+        h, w = image.shape
         if w < self.width:
-            image = np.concatenate((image, np.ones((self.width - w, h))*255))
+            image = np.concatenate((image, np.ones((h, self.width - w))*255), axis=1)
         if h < self.height:
-            image = np.concatenate((image, np.ones((self.width, self.height - h))*255), axis=1)
+            image = np.concatenate((image, np.ones((self.height - h, self.width))*255))
         image = np.expand_dims(image, axis=2)
         return image / 255.0
 
@@ -104,6 +107,19 @@ class MjSynth:
         train_labels = pad_sequences(train_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
         val_labels = pad_sequences(val_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
         test_labels = pad_sequences(test_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
+
+        # Convert
+        train_images = np.array(train_images)
+        val_images = np.array(val_images)
+        test_images = np.array(test_images)
+
+        train_input_length = np.array(train_input_length)
+        val_input_length = np.array(val_input_length)
+        test_input_length = np.array(test_input_length)
+
+        train_label_length = np.array(train_label_length)
+        val_label_length = np.array(val_label_length)
+        test_label_length = np.array(test_label_length)
 
         return (train_images, train_labels, train_input_length, train_label_length) \
             , (val_images, val_labels, val_input_length, val_label_length) \
@@ -137,3 +153,6 @@ if __name__ == "__main__":
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
 
     train_ds, val_ds, test_ds = mj_synth.create_datasets(X_train, y_train, X_val, y_val, X_test, y_val)
+    print('Train images {} / labels {} / input_length {} / label_length {}'.format(
+        train_ds[0].shape, train_ds[1].shape, train_ds[2].shape, train_ds[3].shape)
+    )
