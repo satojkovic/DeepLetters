@@ -57,8 +57,7 @@ class MjSynth:
         for i, annot in enumerate(tqdm(annotations)):
             image_path, _ = annot.split(' ')
             image = cv2.imread(str(self.data_root.joinpath(image_path).absolute()))
-            h, w, _ = image.shape
-            if image is None or image.size == 0 or w > self.width or h > self.height:
+            if image is None or image.size == 0 or image.shape[1] > self.width or image.shape[0] > self.height:
                 np.delete(annotations, i)
                 continue
             image_paths.append(image_path)
