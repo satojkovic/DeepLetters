@@ -41,28 +41,35 @@ class MjSynth:
 
     def random_choice(self, random_choice_rate=0.02):
         # choose data at random
-        y_train = np.random.choice(self.annotation_train,
-            int(self.num_train_data * random_choice_rate), replace=False)
-        X_train = self._get_image_paths_with_check(y_train)
-        y_val = np.random.choice(self.annotation_val,
-            int(self.num_val_data * random_choice_rate), replace=False)
-        X_val = self._get_image_paths_with_check(y_val)
-        y_test = np.random.choice(self.annotation_test,
-            int(self.num_test_data * random_choice_rate), replace=False)
-        X_test = self._get_image_paths_with_check(y_test)
+        print('Choose annotations for training')
+        y_train = list(np.random.choice(self.annotation_train,
+            int(self.num_train_data * random_choice_rate), replace=False))
+        X_train, y_train = self._get_valid_image_and_annotation_paths(y_train)
+
+        print('Choose annotations for validation')
+        y_val = list(np.random.choice(self.annotation_val,
+            int(self.num_val_data * random_choice_rate), replace=False))
+        X_val, y_val = self._get_valid_image_and_annotation_paths(y_val)
+
+        print('Choose annotations for test')
+        y_test = list(np.random.choice(self.annotation_test,
+            int(self.num_test_data * random_choice_rate), replace=False))
+        X_test, y_test = self._get_valid_image_and_annotation_paths(y_test)
+
         return X_train, y_train, X_val, y_val, X_test, y_test
 
-    def _get_image_paths_with_check(self, annotations):
+    def _get_valid_image_and_annotation_paths(self, annotations):
         image_paths = []
-        for i, annot in enumerate(tqdm(annotations)):
+        annot_paths = []
+        for annot in tqdm(annotations):
             image_path, _ = annot.split(' ')
             image = cv2.imread(str(self.data_root.joinpath(image_path).absolute()))
             if image is None or image.size == 0 or image.shape[1] > self.width or image.shape[0] > self.height:
-                np.delete(annotations, i)
                 continue
             image_paths.append(image_path)
+            annot_paths.append(annot)
             self._images[image_path] = image
-        return image_paths
+        return image_paths, annot_paths
 
     def _encode(self, txt):
         encoded_txt = []
@@ -98,18 +105,19 @@ class MjSynth:
         return self._preprocess_image(image)
 
     def create_datasets(self, X_train, y_train, X_val, y_val, X_test, y_test):
+        print('Preprocess training dataset')
         train_images, train_labels, train_input_length, train_label_length = self._create_dataset(X_train, y_train)
-        val_images, val_labels, val_input_length, val_label_length = self._create_dataset(X_val, y_val)
-        test_images, test_labels, test_input_length, test_label_length = self._create_dataset(X_test, y_test)
-
-        # padding
         train_labels = pad_sequences(train_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
-        val_labels = pad_sequences(val_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
-        test_labels = pad_sequences(test_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
-
-        # Convert
         train_images = np.array(train_images)
+
+        print('Preprocess validation dataset')
+        val_images, val_labels, val_input_length, val_label_length = self._create_dataset(X_val, y_val)
+        val_labels = pad_sequences(val_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
         val_images = np.array(val_images)
+
+        print('Preprocess test dataset')
+        test_images, test_labels, test_input_length, test_label_length = self._create_dataset(X_test, y_test)
+        test_labels = pad_sequences(test_labels, maxlen=self.max_label_len, padding='post', value=len(self.char_list))
         test_images = np.array(test_images)
 
         train_input_length = np.array(train_input_length)
@@ -137,7 +145,7 @@ class MjSynth:
                 self.max_label_len = len(txt)
             labels.append(txt)
             label_length.append(len(txt))
-        input_length = [31 for _ in y]
+        input_length = [self.max_label_len for _ in y]
         return images, labels, input_length, label_length
 
 if __name__ == "__main__":
@@ -149,7 +157,7 @@ if __name__ == "__main__":
     )
 
     X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice(random_choice_rate=0.01)
-    print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
+    print('Train {}:{} / Val {}:{} / Test {}:{}'.format(len(X_train), len(y_train), len(X_val), len(y_val), len(X_test), len(y_test)))
 
     train_ds, val_ds, test_ds = mj_synth.create_datasets(X_train, y_train, X_val, y_val, X_test, y_val)
     print('Train images {} / labels {} / input_length {} / label_length {}'.format(
