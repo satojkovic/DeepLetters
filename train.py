@@ -18,9 +18,11 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=256, help='Batch size')
     parser.add_argument('--epochs', default=10, help='Num. of epochs')
     parser.add_argument('--save_model_path', default='crnn_model.h5', help='Path to output model')
+    parser.add_argument('--debug', action='store_true', help='Invoke tfdbg')
     args = parser.parse_args()
 
-    set_debugger_session()
+    if args.debug:
+        set_debugger_session()
 
     # Setup dataset
     mj_synth = MjSynth('mnt/ramdisk/max/90kDICT32px')
