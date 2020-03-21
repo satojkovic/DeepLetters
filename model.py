@@ -46,9 +46,12 @@ class CRNN:
         y_pred, y_true, input_length, label_length = args
         return K.ctc_batch_cost(y_true, y_pred, input_length, label_length)
 
-    def inference(self, x):
-        return self.model.predict(x)
+    def load_weights(self, model_path):
+        self.model.load_weights(model_path)
 
+    def inference(self, images):
+        preds = self.model.predict(images)
+        return K.get_value(K.ctc_decode(preds, input_length=np.ones(preds.shape[0])*preds.shape[1], greedy=True)[0][0])
 
 class CvEAST:
     def __init__(self, pb_file, width=320, height=320, conf_th=0.5, nms_th=0.4, roi_pad=0.0):
