@@ -32,7 +32,7 @@ if __name__ == "__main__":
         len(mj_synth.annotation_test))
     )
 
-    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice(random_choice_rate=0.01)
+    X_train, y_train, X_val, y_val, X_test, y_test = mj_synth.random_choice(random_choice_rate=0.005)
     print('Train {} / Val {} / Test {}'.format(len(y_train), len(y_val), len(y_test)))
 
     train_ds, val_ds, test_ds = mj_synth.create_datasets(X_train, y_train, X_val, y_val, X_test, y_val)

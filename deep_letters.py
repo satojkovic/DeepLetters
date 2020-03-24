@@ -12,14 +12,7 @@ import string
 
 import tensorflow as tf
 from object_detection.utils import ops as utils_ops
-
-sys.path.append(os.path.join(Path().resolve(), '..', 'crnn.pytorch'))
-from models.crnn import CRNN
-import utils
-import dataset
-from torchvision.transforms import transforms
-from torch.autograd import Variable
-import torch
+from model import CRNN
 
 def parse_cmdline_flags():
     parser = argparse.ArgumentParser()
@@ -88,14 +81,8 @@ if __name__ == "__main__":
             tf.import_graph_def(od_graph_def, name='')
 
     # Load CRNN model
-    alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
-    crnn = CRNN(32, 1, 37, 256)
-    if torch.cuda.is_available():
-        crnn = crnn.cuda()
-    crnn.load_state_dict(torch.load(args.recognition_model_path))
-    converter = utils.strLabelConverter(alphabet)
-    transformer = dataset.resizeNormalize((100, 32))
-    crnn.eval()
+    crnn = CRNN()
+    crnn.load_weights(args.recognition_model_path)
 
     # Open a video file or an image file
     cap = cv2.VideoCapture(args.input if args.input else 0)
@@ -117,20 +104,19 @@ if __name__ == "__main__":
             left, right, top, bottom = int(xmin * im_width), int(xmax * im_width), int(ymin * im_height), int(ymax * im_height)
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
-            # convert to pil
-            box_frame = cv2.cvtColor(frame[top:bottom, left:right], cv2.COLOR_BGR2GRAY)
-            pil_box_frame = Image.fromarray(box_frame)
+            # convert
+            box_frame = cv2.resize(frame[top:bottom, left:right], (crnn.width, crnn.height))
+            box_frame = cv2.cvtColor(box_frame, cv2.COLOR_BGR2GRAY)
+            box_frame = np.expand_dims(box_frame, axis=2)
+            box_frame = box_frame / 255.0
+            box_frame = np.expand_dims(box_frame, axis=0)
 
             # Text recognition
-            pil_box_frame = transformer(pil_box_frame)
-            pil_box_frame = pil_box_frame.view(1, *pil_box_frame.size())
-            pil_box_frame = Variable(pil_box_frame)
-            preds = crnn(pil_box_frame)
-            _, preds = preds.max(2)
-            preds = preds.transpose(1, 0).contiguous().view(-1)
-            preds_size = preds_size = Variable(torch.IntTensor([preds.size(0)]))
-            raw_pred = converter.decode(preds.data, preds_size.data, raw=True)
-            sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
-            cv2.putText(frame, sim_pred, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
+            out = crnn.predict(box_frame)
+            out_text = []
+            for x in out:
+                for p in x:
+                    out_text.append(crnn.char_list[int(p)])
+            cv2.putText(frame, ''.join(out_text), (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
 
         cv2.imshow('Text Detection and Text Recognition', frame)

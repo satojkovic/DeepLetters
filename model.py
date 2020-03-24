@@ -49,7 +49,7 @@ class CRNN:
     def load_weights(self, model_path):
         self.model.load_weights(model_path)
 
-    def inference(self, images):
+    def predict(self, images):
         preds = self.model.predict(images)
         return K.get_value(K.ctc_decode(preds, input_length=np.ones(preds.shape[0])*preds.shape[1], greedy=True)[0][0])
 
