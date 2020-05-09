@@ -1,12 +1,13 @@
 # DeepLetters
 
-Deep learning based text detection and recognition using tensorflow.
+A tensorflow implementaion for text detection and text recognition.
 
-DeepLetters consists of two convolutional networks.
-* [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325) for text detection
-* [Convolutional Recurrent Neural Network](https://arxiv.org/abs/1507.05717) for text recognition
+DeepLetters consists of two networks.
 
-## results
+* [SSD(Single Shot MultiBox Detector)](https://arxiv.org/abs/1512.02325) is used to detect text regions in images.
+* [Convolutional Recurrent Neural Network](https://arxiv.org/abs/1507.05717) recognizes the textual content of the identified text regions.
+
+## Results
 
 ![result1](results/result.jpg)
 
