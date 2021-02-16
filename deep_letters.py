@@ -10,7 +10,8 @@ from pathlib import Path
 from PIL import Image
 import string
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 from object_detection.utils import ops as utils_ops
 from model import CRNN
 

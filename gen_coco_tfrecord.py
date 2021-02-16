@@ -2,7 +2,8 @@ import sys
 sys.path.append('coco-text')
 import coco_text
 import argparse
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import os
 import io
 from PIL import Image

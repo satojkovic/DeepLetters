@@ -5,7 +5,8 @@ import argparse
 import scipy.io as sio
 import numpy as np
 from tqdm import tqdm
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import os
 from PIL import Image
 from object_detection.utils import dataset_util
